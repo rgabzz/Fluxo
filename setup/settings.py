@@ -28,7 +28,7 @@ DEBUG = False
 ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
-    "https://buscar-lo4f.onrender.com"
+    ".onrender.com"
 ]
 
 
