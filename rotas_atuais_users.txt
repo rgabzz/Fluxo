@@ -1,0 +1,22 @@
+POST - /api/auth/register/
+{
+  "username": "admin",
+  "email": "admin@ifrn.edu.br",
+  "password": "123456",
+  "role": "CITY_ADMIN"
+}
+
+POST - api/token/
+{
+  "username": "admin",
+  "password": "123456"
+}
+
+    \
+    -- Retorna o token de acesso que vc usa nas proximas abas
+    \
+
+GET /api/auth/me/ -> Retorna os dados do usuário logado
+GET /api/users/ -> apenas para admministradores do sistema e da prefeitura
+GET /api/users/<id> -> apenas para admministradores do sistema e da prefeitura
+

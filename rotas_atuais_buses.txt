@@ -1,0 +1,91 @@
+Base atual:
+1 - Admin cadastra o onibus e a cidade
+2 - Admin cria a rota do onibus linkando essas 2 informações
+3 - Motorista cria a lista
+4 - Usuário se cadastra na lista
+
+//
+Cidades
+//
+POST - /api/cities/ - somente CITY_ADMIN ou superuser
+{
+  "name": "Apodi"
+}
+
+PUT/PATCH - /api/cities/<id>/ - somente CITY_ADMIN ou superuser
+{
+  "name": "Caraúbas"
+}
+
+GET - /api/cities/
+GET - /api/cities/<id>/
+DELETE - /api/cities/<id>/
+//
+
+
+
+//
+Onibus
+//
+POST - /api/buses/ - somente CITY_ADMIN ou superuser
+{
+  "name": "IFRN Apodi 01",
+  "plate": "ABC1234",
+  "capacity": 40
+  "driver": 3
+}
+
+PUT/PATCH - /api/buses/<id>/ - somente CITY_ADMIN ou superuser
+{
+  "name": "IFRN Apodi 02",
+  "capacity": 45
+}
+
+GET - /api/buses/
+GET - /api/buses/<id>/
+DELETE - /api/buses/<id>/ - somente CITY_ADMIN ou superuser
+//
+
+
+
+//
+Rotas do onibus
+//
+POST - /api/routes/  - somente CITY_ADMIN ou superuser
+{
+  "bus": 1,
+  "city": 2,
+  "departure_time_city": "05:40:00",
+  "departure_time_ifrn": "12:00:00"
+}
+ 
+PUT/PATCH - /api/routes/<id>/ - somente CITY_ADMIN ou superuser
+{
+  "departure_time_city": "06:00:00"
+}
+
+GET - /api/routes/
+GET - /api/routes/<id>/
+DELETE - /api/routes/<id>/ - somente CITY_ADMIN ou superuser
+//
+
+
+
+//
+Lista do Onibus (sem a parte de adicionar aluno em lista ainda)
+//
+POST - /api/bus-lists/ - somente motorista ou CITY_ADMIN ou superuser
+{
+  "bus_route": 1,
+  "date": "2026-07-05"
+}
+
+PUT/PATCH - /api/bus-lists/<id>/ - somente motorista ou CITY_ADMIN ou superuser
+{
+  "date": "2026-07-06"
+}
+
+GET - /api/bus-lists/
+GET - /api/bus-lists/<id>/
+DELETE - /api/bus-lists/<id>/ - somente CITY_ADMIN ou superuser
+//

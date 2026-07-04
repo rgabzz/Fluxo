@@ -23,9 +23,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-2mak06a(_$$w4@sl$!h*&8k)m0h2qldine7oj$5klh92%bu-(^'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    "127.0.0.1",
+    "localhost",
+    "https://buscar-lo4f.onrender.com"
+]
 
 
 # Application definition
@@ -42,6 +46,7 @@ INSTALLED_APPS = [
 
     # api
     'users',
+    'buses',
 ]
 
 MIDDLEWARE = [
@@ -126,8 +131,6 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 AUTH_USER_MODEL = 'users.User'
 
-DEBUG = False
-ALLOWED_HOSTS = ["https://buscar-lo4f.onrender.com"]
 
 # REST_FRAMEWORK
 
