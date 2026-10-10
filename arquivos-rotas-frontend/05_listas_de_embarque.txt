@@ -1,0 +1,35 @@
+FLUXO - LISTAS DE EMBARQUE (reservas por rota e dia)
+=================================================================
+Uma "lista" e a lista de passageiros de UMA rota em UM dia. O aluno entra nela para reservar.
+
+--- LISTAS -------------------------------------------------------
+GET /api/bus-lists/?route=<id>&date=2026-10-11
+  200: [{"id","bus_route","route_name","date","capacity","entries_count","is_full","joined","created_at"}]
+  - joined = o usuario logado esta na lista?   is_full = entries_count >= capacidade do onibus
+  - Aluno e admin veem todas; MOTORISTA ve apenas as listas das proprias rotas.
+GET /api/bus-lists/<id>/
+
+POST /api/bus-lists/                               [MOTORISTA da rota ou ADMIN]
+  Body: {"bus_route": <id da rota>, "date": "2026-10-11"}     (date padrao = amanha)
+  201 | 400 se motorista nao e dono da rota, ou ja existe lista dessa rota nessa data
+PUT|PATCH /api/bus-lists/<id>/                     [MOTORISTA da rota ou ADMIN]
+DELETE    /api/bus-lists/<id>/                     [somente ADMIN]
+
+--- ALUNO ENTRA / SAI --------------------------------------------
+POST   /api/bus-lists/<id>/join/                   [qualquer logado]
+  Body: {"stay": false}        (opcional; "stay" e o campo ja existente no modelo antigo)
+  201 entrou | 200 ja estava (apenas atualiza "stay") | 409 se a rota esta suspensa
+  Entrar numa lista faz o usuario receber os avisos/push daquela rota.
+DELETE /api/bus-lists/<id>/leave/                  204 (tambem 204 se ja nao estava)
+GET    /api/bus-lists/mine/                        listas em que o usuario logado esta
+
+--- PASSAGEIROS --------------------------------------------------
+GET /api/bus-lists/<id>/entries/                   [motorista da rota ou ADMIN]
+  200: [{"id","user","username","full_name","stay","created_at"}]   (por ordem de inscricao)
+  403 para aluno | 404 para motorista de outra rota (ele nem enxerga a lista)
+
+LIMITACOES CONHECIDAS
+  - A capacidade do onibus NAO e imposta: o aluno consegue entrar mesmo com is_full=true
+    (o app pode bloquear/avisar usando is_full). Se quiser impor, e uma checagem simples no join.
+  - Nao ha criacao automatica de listas por dia (o motorista/admin cria).
+  - O motorista nao consegue remover um aluno especifico da lista (so ADMIN apaga a lista inteira).

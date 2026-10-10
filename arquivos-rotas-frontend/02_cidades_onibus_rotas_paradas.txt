@@ -1,0 +1,80 @@
+FLUXO - CIDADES, ONIBUS, ROTAS E PARADAS (catalogo)
+=================================================================
+Regra geral deste arquivo: LEITURA = qualquer usuario logado | ESCRITA = somente ADMIN
+(exceto favoritos, que qualquer usuario logado faz).
+
+--- CIDADES -----------------------------------------------------
+GET    /api/cities/                    listar
+POST   /api/cities/                    {"name": "Itau"}
+GET    /api/cities/<id>/
+PUT|PATCH /api/cities/<id>/
+DELETE /api/cities/<id>/               409 se houver rota nessa cidade (exclua/mova as rotas antes)
+
+--- ONIBUS ------------------------------------------------------
+GET    /api/buses/                     listar
+POST   /api/buses/                     {"name": "IFRN Itau 01", "plate": "ABC1D23",
+                                        "capacity": 40, "driver": <id do usuario DRIVER>,
+                                        "is_active": true}
+GET    /api/buses/<id>/
+PUT|PATCH /api/buses/<id>/             trocar motorista = PATCH {"driver": <novo id>}
+DELETE /api/buses/<id>/                as rotas continuam existindo, sem onibus
+
+--- ROTAS (cidade + turno) ---------------------------------------
+GET    /api/routes/?city=<id>&shift=MORNING&operating_status=ACTIVE
+  200: [{
+         "id", "code" (ex.: "itau-manha"), "name" (ex.: "Itau - Manha"),
+         "city", "city_name", "shift", "operating_status",
+         "bus", "bus_name", "driver" (id do motorista),
+         "departure_time_city", "departure_time_ifrn",
+         "stops": [{"id","route","order","name","latitude","longitude","coord_status"}, ...],  (ja em ordem)
+         "is_favorite": true|false   (para o usuario logado),
+         "created_at"
+       }]
+
+POST   /api/routes/                    [ADMIN]
+  Body: {"city": <id>, "shift": "MORNING", "code": "itau-manha",
+         "bus": <id>|null, "departure_time_city": "05:40:00", "departure_time_ifrn": "12:00:00"}
+GET    /api/routes/<id>/
+PUT|PATCH /api/routes/<id>/            [ADMIN]
+  - NAO altera operating_status (use suspend/resume abaixo).
+  - Se mudar shift, city, bus ou horarios -> gera evento ROUTE_UPDATED (aviso/push para quem segue a rota).
+DELETE /api/routes/<id>/               [ADMIN] apaga junto paradas, jornadas e listas da rota
+
+POST   /api/routes/<id>/suspend/       [ADMIN]  Body: {"note": "Chuva forte"}  (opcional)
+  200: rota atualizada | 409 se ja estiver suspensa
+  Gera evento OPERATING_CHANGED (URGENT). Enquanto suspensa: nao inicia jornada, nao entra em lista.
+POST   /api/routes/<id>/resume/        [ADMIN]  Body: {"note": "..."}  (opcional)
+  200: rota atualizada | 409 se ja estiver ativa
+  Gera evento OPERATING_CHANGED (IMPORTANT).
+  Obs.: suspender NAO cancela uma jornada que ja esteja em andamento.
+
+--- FAVORITOS (aluno e demais) -----------------------------------
+POST   /api/routes/<id>/favorite/      204   favoritar
+DELETE /api/routes/<id>/favorite/      204   desfavoritar
+  Favoritar uma rota faz o usuario receber os avisos/push dela.
+
+--- PARADAS ------------------------------------------------------
+GET    /api/stops/?route=<id>          listar (filtro por rota)
+POST   /api/stops/                     [ADMIN]
+  Body: {"route": <id>, "order": 1, "name": "Praca de Esportes",
+         "coord_status": "CONFIRMED", "latitude": -5.6000, "longitude": -37.8000}
+GET    /api/stops/<id>/
+PUT|PATCH /api/stops/<id>/             [ADMIN]
+  Ex. preencher coordenada real: PATCH {"coord_status":"CONFIRMED","latitude":-5.6,"longitude":-37.8}
+DELETE /api/stops/<id>/                [ADMIN]
+
+  REGRAS DA PARADA
+  - coord_status PENDING  => latitude e longitude DEVEM ser vazias (400 se enviar).
+  - coord_status CONFIRMED ou DEMO => latitude e longitude OBRIGATORIAS.
+  - "order" e unico dentro da rota (nao pode repetir).
+  - Parada PENDING nao gera pin no mapa e nunca avanca sozinha por GPS.
+
+POST   /api/routes/<id>/stops/reorder/ [ADMIN]
+  Body: {"order": [<id parada>, <id parada>, ...]}   lista COMPLETA, sem repetir
+  200: paradas na nova ordem | 400 se faltar/sobrar id
+
+--- DADOS INICIAIS (nao e rota HTTP) -----------------------------
+  python manage.py seed_fluxo
+  Cria as 7 rotas do relatorio da V2 (Itau-Manha, Severiano-Manha/Tarde, Rodolfo Fernandes-Manha/Noite,
+  Caraubas-Manha, Felipe Guerra-Manha) e suas paradas, TODAS como PENDING (sem coordenadas).
+  Pode rodar varias vezes sem duplicar.

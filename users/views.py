@@ -1,8 +1,10 @@
-from rest_framework import generics, permissions,viewsets,mixins
+from rest_framework import generics, mixins, permissions, viewsets
 from rest_framework.response import Response
-from .serializers import RegisterSerializer, UserSerializer
-from users.models import User
-from .permissions import  IsAdmin
+
+from .models import User
+from .permissions import IsAdmin
+from .serializers import AdminCreateUserSerializer, RegisterSerializer, UserSerializer
+
 
 class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
@@ -13,21 +15,38 @@ class MeView(generics.RetrieveAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        user = request.user
-        return Response({
-            "id": user.id,
-            "username": user.username,
-            "email": user.email,
-            "role": user.role
-        })
+        u = request.user
+        return Response(
+            {
+                "id": u.id,
+                "username": u.username,
+                "email": u.email,
+                "first_name": u.first_name,
+                "last_name": u.last_name,
+                "role": u.role,
+            }
+        )
+
 
 class UserViewSet(
+    mixins.CreateModelMixin,
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
     mixins.UpdateModelMixin,
     mixins.DestroyModelMixin,
     viewsets.GenericViewSet,
 ):
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
+    """Gestão de usuários (somente admin). `?role=DRIVER` filtra por papel."""
+
     permission_classes = [IsAdmin]
+
+    def get_queryset(self):
+        qs = User.objects.all().order_by("id")
+        role = self.request.query_params.get("role")
+        return qs.filter(role=role) if role else qs
+
+    def get_serializer_class(self):
+        return AdminCreateUserSerializer if self.action == "create" else UserSerializer
+
+    def get_serializer_context(self):
+        return {**super().get_serializer_context(), "request": self.request}

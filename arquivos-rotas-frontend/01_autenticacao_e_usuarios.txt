@@ -1,0 +1,48 @@
+FLUXO - AUTENTICACAO E USUARIOS
+=================================================================
+
+--- LOGIN -------------------------------------------------------
+POST /api/token/                                   [publico]
+  Body: {"username": "maria", "password": "..."}
+  200:  {"access": "<jwt>", "refresh": "<jwt>"}
+  401:  credenciais invalidas
+
+POST /api/token/refresh/                           [publico]
+  Body: {"refresh": "<jwt>"}
+  200:  {"access": "<novo jwt>"}
+  Obs.: o refresh nao e rotacionado; ele vale ate vencer (30 dias).
+
+--- CADASTRO PUBLICO (somente ALUNO) -----------------------------
+POST /api/auth/register/                           [publico]
+  Body: {"username": "maria", "password": "SenhaForte#123",
+         "email": "", "first_name": "", "last_name": ""}      (so username e password obrigatorios)
+  201:  {"username","email","first_name","last_name"}
+  400:  senha fraca (validadores do Django: minimo 8, nao so numeros, nao comum) ou usuario ja existe
+  Obs.: o papel e SEMPRE STUDENT. Enviar "role" e ignorado.
+
+--- PERFIL ------------------------------------------------------
+GET /api/auth/me/                                  [qualquer logado]
+  200: {"id","username","email","first_name","last_name","role"}
+  Use no app logo apos o login para saber qual interface mostrar (aluno/motorista/admin).
+
+--- GESTAO DE USUARIOS ------------------------------------------
+Todas as rotas abaixo: somente ADMIN.
+
+GET  /api/users/?role=DRIVER                       listar (filtro opcional por papel)
+  200: [{"id","username","email","first_name","last_name","role","is_active"}, ...]
+
+POST /api/users/                                   criar motorista/aluno/admin
+  Body: {"username","password","role","email","first_name","last_name"}
+  201:  usuario criado (sem a senha)
+  400:  senha fraca / usuario existente / CITY_ADMIN tentando criar SYSTEM_ADMIN
+        (so superusuario cria SYSTEM_ADMIN)
+
+GET    /api/users/<id>/                            detalhe
+PUT    /api/users/<id>/                            alterar (completo)
+PATCH  /api/users/<id>/                            alterar (parcial) - ex.: {"is_active": false} desativa
+DELETE /api/users/<id>/                            excluir (apaga tambem favoritos, reservas e leituras dele)
+
+LIMITACOES CONHECIDAS (nao implementado)
+  - Nao ha rota para o usuario trocar a propria senha, recuperar senha ou editar o proprio perfil.
+    (admin pode redefinir senha pelo Django Admin em /admin/)
+  - Nao ha logout no servidor: o app apenas apaga os tokens locais (e chama DELETE /api/push-tokens/).

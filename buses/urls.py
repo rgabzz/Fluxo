@@ -1,12 +1,13 @@
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
-from .viewset import BusViewSet, CityViewSet,BusRouteViewSet
+
+from .viewset import BusListViewSet, BusRouteViewSet, BusViewSet, CityViewSet, StopViewSet
 
 router = DefaultRouter()
-router.register(r'buses', BusViewSet)
-router.register(r'cities', CityViewSet)
-router.register(r'routes', BusRouteViewSet)
+router.register(r"buses", BusViewSet)
+router.register(r"cities", CityViewSet)
+router.register(r"routes", BusRouteViewSet, basename="routes")
+router.register(r"stops", StopViewSet, basename="stops")
+router.register(r"bus-lists", BusListViewSet, basename="bus-lists")
 
-urlpatterns = [
-    path('', include(router.urls)),
-]
+urlpatterns = [path("", include(router.urls))]

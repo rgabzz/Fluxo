@@ -1,38 +1,7 @@
-from rest_framework.permissions import BasePermission
+# Mantido por compatibilidade com o código antigo; a fonte única agora é users.permissions.
+from users.permissions import IsAdmin, IsDriver, IsDriverOrAdmin, IsStudent
 
-class IsStudent(BasePermission):
-    def has_permission(self, request, view):
-        return (
-            request.user.is_authenticated and
-            request.user.role == "STUDENT"
-        )
+IsCityAdmin = IsAdmin
+IsDriverOrCityAdmin = IsDriverOrAdmin
 
-
-class IsDriver(BasePermission):
-    def has_permission(self, request, view):
-        return (
-            request.user.is_authenticated and
-            request.user.role == "DRIVER"
-        )
-
-
-class IsCityAdmin(BasePermission):
-    def has_permission(self, request, view):
-        return (
-            request.user.is_authenticated and
-            (
-                request.user.role == "CITY_ADMIN"
-                or request.user.is_superuser
-            )
-        )
-
-
-class IsDriverOrCityAdmin(BasePermission):
-    def has_permission(self, request, view):
-        return (
-            request.user.is_authenticated and
-            (
-                request.user.role in ["DRIVER", "CITY_ADMIN"]
-                or request.user.is_superuser
-            )
-        )
+__all__ = ["IsStudent", "IsDriver", "IsCityAdmin", "IsDriverOrCityAdmin", "IsAdmin", "IsDriverOrAdmin"]

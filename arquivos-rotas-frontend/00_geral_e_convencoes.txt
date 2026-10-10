@@ -1,0 +1,51 @@
+FLUXO - API - CONVENCOES GERAIS (leia antes dos outros arquivos)
+=================================================================
+
+Arquivos desta pasta
+  00_geral_e_convencoes.txt        este arquivo
+  01_autenticacao_e_usuarios.txt   login, cadastro, perfil, gestao de usuarios
+  02_cidades_onibus_rotas_paradas.txt   catalogo: cidades, onibus, rotas, paradas, favoritos
+  03_jornada_gps_e_mapa.txt        jornada do motorista, GPS, progresso e mapa ao vivo
+  04_notificacoes_avisos_push.txt  sino, avisos admin, push
+  05_listas_de_embarque.txt        listas por rota/dia, entrar/sair, passageiros
+
+URL base: https://SEU-DOMINIO/api/      (local: http://127.0.0.1:8000/api/)
+Todas as URLs funcionam com ou sem a barra final.
+Painel Django Admin (cadastro manual, coordenadas das paradas): /admin/
+
+AUTENTICACAO
+  Header em TODAS as rotas, exceto /token/ e /auth/register/:
+      Authorization: Bearer <access_token>
+  access_token dura 1 hora. refresh_token dura 30 dias.
+  Corpo das requisicoes: JSON (Content-Type: application/json).
+
+PAPEIS (campo "role" do usuario)
+  STUDENT       aluno
+  DRIVER        motorista
+  CITY_ADMIN    prefeitura (admin)
+  SYSTEM_ADMIN  admin do sistema
+  (superusuario Django tambem conta como admin)
+  Nos txt, "ADMIN" = CITY_ADMIN, SYSTEM_ADMIN ou superusuario.
+
+CODIGOS DE RESPOSTA
+  200 ok | 201 criado | 204 ok sem corpo
+  400 dados invalidos (o corpo diz qual campo)
+  401 sem token ou token expirado (renovar com /token/refresh/)
+  403 logado, mas sem permissao para a acao
+  404 nao existe OU voce nao tem permissao de ver (ex.: lista de outro motorista)
+  409 conflito de estado (ex.: rota suspensa, jornada ja em andamento, parada fora de ordem)
+  429 muitas requisicoes
+
+LIMITES (throttling)
+  Sem login: 60 requisicoes/min | Com login: 300 requisicoes/min
+  (o motorista envia ~12 posicoes/min, entao sobra folga)
+
+FORMATOS
+  Datas/horas: ISO 8601 (ex.: 2026-10-10T14:30:00-03:00). Fuso do servidor: America/Sao_Paulo.
+  Horarios de rota: "HH:MM:SS" (ex.: "05:40:00").
+  Listas retornam array simples (sem paginacao), exceto /notifications/ que retorna objeto.
+
+TURNOS (shift): MORNING (Manha) | AFTERNOON (Tarde) | NIGHT (Noite)
+STATUS DA ROTA (operating_status): ACTIVE | SUSPENDED
+STATUS DA COORDENADA DA PARADA (coord_status): CONFIRMED | DEMO | PENDING
+STATUS DA JORNADA: IN_PROGRESS | FINISHED | CANCELED

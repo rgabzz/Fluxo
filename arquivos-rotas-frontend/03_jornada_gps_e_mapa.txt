@@ -1,0 +1,81 @@
+FLUXO - JORNADA DO MOTORISTA, GPS, PROGRESSO E MAPA AO VIVO
+=================================================================
+
+--- MAPA AO VIVO (aluno, motorista, admin) -----------------------
+GET /api/routes/<id>/live/                         [qualquer logado]
+  Fazer polling a cada ~5 segundos. Tudo que o mapa/timeline precisa em UMA chamada:
+  {
+    "route":   {"id","code","name","operating_status"},
+    "journey": null  ou  {"id","status","started_at","delay_minutes","delay_note"},
+    "location": null ou {"latitude","longitude","heading","speed","recorded_at","stale"},
+    "stops": [{"id","order","name","latitude","longitude","coord_status",
+               "state": "done" | "current" | "upcoming",
+               "reached_at","departed_at"}],
+    "server_time": "..."
+  }
+  - journey = null  => nenhuma viagem em andamento nessa rota.
+  - stale = true    => mais de 60 s sem posicao nova (mostrar "sinal perdido").
+  - Exatamente uma parada fica "current" (a proxima a alcancar) enquanto houver jornada.
+
+--- JORNADA: CONSULTA --------------------------------------------
+GET /api/journeys/?route=<id>&status=IN_PROGRESS&active=1      [qualquer logado]
+  200: ate 100 jornadas mais recentes (array)
+GET /api/journeys/<id>/
+  Campos: id, route, route_name, driver, status, started_at, finished_at, delay_minutes, delay_note,
+          cancel_reason, location{...}, progress[{stop,stop_name,order,reached_at,departed_at,source}],
+          next_stop_id (null se acabou ou se nao esta em andamento), stops_total
+  source: AUTO (detectado por GPS) | MANUAL (motorista confirmou)
+
+--- JORNADA: ACOES DO MOTORISTA ----------------------------------
+Quem pode: o motorista dono da rota (o do onibus) ou ADMIN. Aluno e outro motorista = 403.
+
+POST /api/journeys/                                iniciar
+  Body: {"route": <id>}
+  201: jornada criada | 403 nao e o motorista da rota
+  409: rota suspensa; ja existe jornada em andamento nessa rota; ou o motorista ja tem outra em andamento
+  Gera evento JOURNEY_STARTED (aviso + push).
+
+POST /api/journeys/<id>/location/                  enviar posicao GPS
+  Modo 1 (uma amostra):
+    {"latitude": -5.6, "longitude": -37.8, "accuracy": 8, "speed": 9.5, "heading": 180,
+     "recorded_at": "2026-10-10T14:30:00Z"}
+    obrigatorios: latitude (-90..90), longitude (-180..180). recorded_at padrao = agora.
+  Modo 2 (fila offline, 1 a 50 amostras):
+    {"samples": [ {..}, {..} ], "replay": true}
+    replay=true libera amostras antigas para contarem no progresso (reenvio apos ficar sem internet).
+  200: {"accepted": n, "ignored": n, "reached_stops": [ids], "departed_stops": [ids]}
+  400: coordenada invalida ou lote vazio/maior que 50 | 409: jornada nao esta em andamento
+  Recomendado: enviar a cada 5 s ou 15 m (como o watcher atual do app).
+
+POST /api/journeys/<id>/stops/<stop_id>/reach/     confirmar parada manualmente
+  Sem body. Aceita SOMENTE a proxima parada da ordem.
+  200: jornada atualizada | 409: parada fora de ordem, ja concluida, ou nao ha mais paradas
+  Unica forma de avancar paradas que ainda estao sem coordenada.
+
+POST /api/journeys/<id>/delay/                     informar atraso
+  Body: {"minutes": 15, "note": "Transito na BR"}      (minutes 1..600; note opcional)
+  Gera evento DELAY_REPORTED (IMPORTANT).
+
+POST /api/journeys/<id>/cancel/                    cancelar
+  Body: {"reason": "Pane no onibus"}  (opcional)
+  Gera evento STATUS_CHANGED (URGENT).
+
+POST /api/journeys/<id>/finish/                    finalizar
+  Gera evento JOURNEY_FINISHED.
+  Obs.: alcancar a ultima parada NAO finaliza a jornada sozinha; o motorista finaliza.
+
+--- REGRAS DO PROGRESSO AUTOMATICO POR GPS -----------------------
+  Chegada:   3 amostras SEGUIDAS a ate 75 m da proxima parada
+  Saida:     2 amostras seguidas a mais de 125 m da parada em que estava
+  Ignoradas: amostras com accuracy pior que 40 m
+  Sequencia: no maximo 20 s entre amostras da mesma sequencia (senao recomeca)
+  Idade:     amostra com mais de 30 s so atualiza a posicao; nao conta p/ parada (exceto replay)
+  Ordem:     nunca pula nem volta parada; so a "proxima" pode ser alcancada
+  Sem coord: parada PENDING nao avanca sozinha (e bloqueia o avanco automatico das seguintes)
+  Cada parada alcancada cria evento STOP_REACHED (atualiza o progresso, mas NAO vai ao sino/push).
+  Amostras fora de ordem de tempo (mais antigas que a ultima aceita) sao ignoradas.
+
+LIMITACOES CONHECIDAS
+  - Guarda apenas a ULTIMA posicao de cada jornada (nao ha historico de trajeto).
+  - Tempo real por polling (nao ha WebSocket).
+  - Nao ha endpoint para editar/excluir jornada (so iniciar, operar, cancelar, finalizar).

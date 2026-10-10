@@ -1,0 +1,71 @@
+FLUXO - NOTIFICACOES, AVISOS E PUSH
+=================================================================
+
+--- SINO + TELA DE AVISOS (usuario logado) -----------------------
+GET /api/notifications/?route=<id>&unread=1&after_id=<id>&since=<iso>&limit=50
+  200: {
+         "unread_count": 3,
+         "results": [{"id","type","title","message","level","route","route_name",
+                      "journey_id","payload","created_at","read": true|false}]
+       }
+  - Mais novos primeiro. limit padrao 50, maximo 200.
+  - after_id: devolve so itens com id maior (polling incremental barato).
+  - unread=1: so nao lidos. route: so de uma rota.
+  - Lidos continuam no historico (read=true); o badge conta so os nao lidos.
+  - O estado de leitura e SEPARADO por usuario.
+
+GET  /api/notifications/unread-count/              {"unread_count": n}   (para o badge)
+GET  /api/notifications/<id>/                      um item (404 se voce nao pode ver)
+POST /api/notifications/<id>/read/                 204  marcar como lido
+POST /api/notifications/read-all/                  204  marcar todos como lidos
+
+--- QUEM VE O QUE ------------------------------------------------
+  ALUNO     avisos gerais + eventos das rotas que favoritou OU onde tem reserva em alguma lista
+  MOTORISTA avisos gerais + eventos das rotas do seu onibus
+  ADMIN     tudo
+
+--- TIPOS DE EVENTO (campo "type") -------------------------------
+  type               gerado por                          level      vai ao sino/push?
+  NOTICE             admin (POST /notices/)              escolhido  sim
+  JOURNEY_STARTED    motorista inicia jornada            INFO       sim
+  DELAY_REPORTED     motorista informa atraso            IMPORTANT  sim
+  STATUS_CHANGED     motorista cancela jornada           URGENT     sim
+  JOURNEY_FINISHED   motorista finaliza jornada          INFO       sim
+  ROUTE_UPDATED      admin muda horario/turno/onibus     IMPORTANT  sim
+  OPERATING_CHANGED  admin suspende (URGENT) / retoma    URGENT /   sim
+                     (IMPORTANT) a rota                  IMPORTANT
+  STOP_REACHED       GPS ou motorista alcanca parada     INFO       NAO (evita spam)
+  level: INFO | IMPORTANT | URGENT
+
+--- AVISOS ADMINISTRATIVOS (somente ADMIN) -----------------------
+GET    /api/notices/                               listar avisos publicados
+POST   /api/notices/
+  Body: {"title": "Onibus nao sai amanha", "message": "Feriado municipal",
+         "level": "IMPORTANT", "route": <id>|null}
+  - route vazio = aviso GERAL (todos os usuarios). route preenchida = so quem segue essa rota.
+  - Ao criar: aparece no sino de quem deve receber e dispara push.
+GET    /api/notices/<id>/
+PUT|PATCH /api/notices/<id>/                       editar texto (NAO reenvia push)
+DELETE /api/notices/<id>/                          apaga o aviso para todos
+
+--- PUSH (Expo) --------------------------------------------------
+POST   /api/push-tokens/                           registrar/atualizar o aparelho
+  Body: {"token": "ExponentPushToken[xxxx]", "platform": "android"}   (android | ios | web)
+  204. Pode chamar a cada abertura do app (e idempotente). Se o mesmo aparelho logar com outro
+  usuario, o token passa para o novo usuario.
+  400 se o token nao comecar com ExponentPushToken[ ou ExpoPushToken[
+DELETE /api/push-tokens/                           remover (chamar no logout)
+  Body: {"token": "ExponentPushToken[xxxx]"}   204
+
+  Como o push funciona:
+  - Dispara apos o evento ser gravado, em segundo plano. Falha de push NUNCA derruba a API.
+  - Destinatarios: aviso geral = todos os usuarios com token; evento de rota = quem favoritou a rota,
+    quem tem reserva nela e o motorista da rota. Quem causou o evento nao recebe.
+  - Tokens invalidos (DeviceNotRegistered) sao apagados automaticamente.
+  - So envia quando PUSH_ENABLED=True (padrao: ligado quando DEBUG=False).
+  - Se o aparelho estava offline, ao reabrir o app ele le /notifications/ e ve tudo que perdeu.
+
+LIMITACOES CONHECIDAS
+  - O sino atualiza por polling (use after_id) ou pelo proprio push; nao ha WebSocket.
+  - Quem passa a seguir uma rota depois tambem enxerga os eventos antigos dela.
+  - Push nao foi testado contra o servidor real do Expo (apenas com simulacao nos testes).
